@@ -71,4 +71,61 @@ const tabStore = TabsStore();
 
 //定义 formRef (校验规则)
 type FormInstance = InstanceType<typeof ElForm>;
+const loginFormRef = ref<FormInstance>();
+const loginRules = reactive({
+  username: [{ required: true, message: "请输入用户名", trigger: "blur" }],
+  password: [{ required: true, message: "请输入密码", trigger: "blur" }],
+});
+
+// 登录表单数据
+const loginForm = reactive<Login.ReqLoginForm>({
+  username: "",
+  password: "",
+});
+
+const loading = ref<boolean>(false);
+const router = useRouter();
+// login
+const login = (formEl: FormInstance | undefined) => {
+  if (!formEl) return;
+  formEl.validate(async (valid) => {
+    if (valid) {
+      loading.value = true;
+      try {
+        const requestLogin: Login.ReqLoginForm = {
+          username: loginForm.username,
+          password: md5(loginForm.password),
+        };
+        const res = await loginApi(requestLogin);
+        // 存储token
+        globalStore.setToken(res.data!.access_token);
+        // 登录成功之后清除上个账号 menulist 和 tabs 数据
+        menuStore.setMenuList([]);
+        tabStore.closeMultipleTab();
+
+        ElMessage.success("登录成功！");
+        router.push({ name: "home" });
+      } finally {
+        loading.value = false;
+      }
+    }
+  });
+};
+
+// resetForm
+const resetForm = (formEl: FormInstance | undefined) => {
+  if (formEl) return;
+  formEl.resetFields();
+};
+
+onMounted(() => {
+  // 监听enter事件(调用登录)
+  document.onkeydown = (e: any) => {
+    e = window.event || e;
+    if (e.code === "Enter" || e.code === "enter") {
+      if (loading.value) return;
+      login(loginForm.value);
+    }
+  };
+});
 </script>
